@@ -1,0 +1,60 @@
+Transmission VPN-Only — Quick Reference
+========================================
+Router: GL-AXT1800 | OpenWrt 23.05 | fw4/nft
+VPN: ovpnclient1 | RPC: 192.168.8.1:9091
+
+QUICK COMMANDS
+--------------
+  Status:        /etc/init.d/transmission status
+  Restart:       /etc/init.d/transmission restart
+  Torrent list:  transmission-remote 192.168.8.1:9091 --list
+  Reannounce:    transmission-remote 192.168.8.1:9091 --torrent all --reannounce
+  Diagnostics:   /etc/transmission-diag.sh
+  Watchdog log:  logread | grep watchdog
+  Hotplug log:   logread | grep transmission-vpn-hotplug
+
+FILE LOCATIONS
+--------------
+  Config dir:    /etc/transmission/
+  Settings:      /etc/transmission/settings.json
+  Firewall:      /etc/firewall.user
+  Hotplug:       /etc/hotplug.d/iface/99-transmission-vpn
+  Watchdog:      /etc/transmission-watchdog.sh
+  Diagnostics:   /etc/transmission-diag.sh
+  This file:     /etc/transmission/README
+
+KNOWN FAILURE MODES
+-------------------
+  1. Stale tracker backoff
+     Symptom:  Daemon running, VPN up, 0 peers, trackers say "Connection failed"
+     Cause:    Trackers entered exponential backoff after a transient failure
+     Fix:      /etc/init.d/transmission restart
+               transmission-remote 192.168.8.1:9091 --torrent all --reannounce
+     Auto-fix: Watchdog cron detects this every 10 min and auto-recovers
+
+  2. VPN IP changed (server switch)
+     Symptom:  VPN up with new IP, but bind_address_ipv4 still has old IP
+     Cause:    NordVPN assigned a different IP on reconnect
+     Fix:      Hotplug script auto-rebinds on VPN ifup
+
+  3. VPN down
+     Symptom:  No ovpnclient1 interface, Transmission can't reach peers
+     Fix:      Hotplug auto-stops Transmission; auto-starts on VPN return
+
+  4. Ghost magnets in Web UI
+     Symptom:  Web UI shows "Magnetized transfer - retrieving metadata (0.0%)"
+               but `transmission-remote --list` does not show them
+     Cause:    Browser cached stale magnet submissions that the daemon rejected
+               (e.g. duplicates). They only exist in the browser, not the daemon.
+     Fix:      Hard-refresh the Web UI (Cmd+Shift+R / Ctrl+Shift+R)
+
+ARCHITECTURE
+------------
+  - nft chain "transmission_vpn" restricts UID 224 to VPN-only egress
+  - Hotplug stops/starts daemon + rebinds IP on VPN changes
+  - Watchdog cron detects stale state (0 peers + stagnant counters)
+  - Firewall fail-closed: if VPN drops, peer traffic is rejected (UI stays)
+
+FULL DOCS
+---------
+  See Obsidian: "Router config - transmission via VPN only"

@@ -1,0 +1,52 @@
+#!/bin/sh
+# /etc/hotplug.d/iface/99-transmission-vpn — Start/stop Transmission on VPN changes
+# Improvements over basic stop/start:
+#   - On ifup: rebinds bind_address_ipv4 to the new VPN IP (handles server switches)
+#   - On ifup: force reannounces all torrents (clears stale tracker backoff)
+#   - Logs all actions to syslog
+
+TAG="transmission-vpn-hotplug"
+
+[ "$INTERFACE" = "ovpnclient1" ] || exit 0
+
+log() { logger -t "$TAG" "$*"; }
+
+case "$ACTION" in
+  ifdown)
+    log "VPN down — stopping Transmission"
+    /etc/init.d/transmission stop
+    ;;
+
+  ifup)
+    # Get the new VPN IP
+    VPN_IP="$(ip -o -4 addr show dev ovpnclient1 2>/dev/null | awk '/inet /{print $4}' | cut -d/ -f1)"
+
+    if [ -z "$VPN_IP" ]; then
+      log "VPN up but no IP assigned yet — starting with current bind"
+      /etc/init.d/transmission start
+      exit 0
+    fi
+
+    # Update bind address to match new VPN IP
+    CURRENT_BIND="$(uci -q get transmission.@transmission[0].bind_address_ipv4)"
+    if [ "$CURRENT_BIND" != "$VPN_IP" ]; then
+      log "VPN IP changed: $CURRENT_BIND → $VPN_IP — updating bind_address_ipv4"
+      uci set transmission.@transmission[0].bind_address_ipv4="$VPN_IP"
+      uci commit transmission
+    fi
+
+    log "VPN up ($VPN_IP) — starting Transmission"
+    /etc/init.d/transmission start
+    sleep 5
+
+    # Force reannounce all torrents to clear any stale tracker backoff
+    TR="192.168.8.1:9091"
+    ANNOUNCED=0
+    transmission-remote "$TR" --list 2>/dev/null | awk 'NR>1 && $1 ~ /^[0-9]+/ {print $1}' | \
+    while read id; do
+      transmission-remote "$TR" --torrent "$id" --reannounce 2>/dev/null
+      ANNOUNCED=$((ANNOUNCED + 1))
+    done
+    log "Reannounced torrents after VPN reconnect"
+    ;;
+esac
