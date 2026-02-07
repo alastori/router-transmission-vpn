@@ -2,7 +2,7 @@ FROM alpine:3.21
 
 RUN apk add --no-cache \
     bash bats coreutils iproute2 procps \
-    transmission-daemon transmission-cli \
+    transmission-daemon transmission-remote \
     util-linux net-tools curl busybox-extras grep sed
 
 # Install bats-support + bats-assert libraries

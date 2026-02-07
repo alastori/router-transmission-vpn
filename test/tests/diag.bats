@@ -6,6 +6,7 @@ load '../helpers/setup'
 
 setup() {
   clean_state
+  mkdir -p /tmp/transmission
   echo "present" > /tmp/nft_mode
   echo "success" > /tmp/ping_mode
   echo "*/10 * * * * /etc/transmission-watchdog.sh" > /tmp/test_crontab

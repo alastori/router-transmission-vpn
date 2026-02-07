@@ -3,7 +3,7 @@
 case "$1" in
   start)
     pgrep -x transmission-da >/dev/null 2>&1 || \
-      transmission-daemon --config-dir /etc/transmission --no-auth --foreground &
+      transmission-daemon --config-dir /etc/transmission --no-auth --foreground >/dev/null 2>&1 &
     sleep 1
     ;;
   stop)

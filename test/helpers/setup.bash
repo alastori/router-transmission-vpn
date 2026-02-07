@@ -78,8 +78,9 @@ uci_reset() {
 
 uci_set() {
   local key="$1" value="$2"
-  if grep -q "^${key}=" /tmp/uci_store 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" /tmp/uci_store
+  if grep -qF "${key}=" /tmp/uci_store 2>/dev/null; then
+    awk -v k="$key" -v v="$value" 'BEGIN{FS="="; OFS="="} $1==k{$0=k"="v} {print}' /tmp/uci_store > /tmp/uci_store.tmp
+    mv /tmp/uci_store.tmp /tmp/uci_store
   else
     echo "${key}=${value}" >> /tmp/uci_store
   fi
