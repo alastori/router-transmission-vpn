@@ -1,0 +1,6 @@
+CURRENT SESSION
+  Uploaded:   1.2 GB
+  Downloaded: 3.4 GB
+  Ratio:      0.3
+  Duration:   2 hours (7200 seconds)
+  Peers:      12

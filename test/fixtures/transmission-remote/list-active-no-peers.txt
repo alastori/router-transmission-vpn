@@ -1,0 +1,4 @@
+    ID   Done       Have  ETA           Up    Down  Ratio  Status       Name
+     1   100%    1.2 GB  Unknown      0.0     0.0    0.0  Idle         test-file-1
+     2    45%  500.0 MB  Unknown      0.0     0.0    0.1  Idle         test-file-2
+Sum:          1.7 GB               0.0     0.0

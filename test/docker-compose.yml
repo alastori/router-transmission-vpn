@@ -1,0 +1,12 @@
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    tmpfs:
+      - /tmp:size=10M

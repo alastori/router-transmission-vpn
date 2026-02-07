@@ -1,0 +1,6 @@
+table inet fw4 {
+  chain output {
+    type filter hook output priority 0; policy accept;
+    counter packets 50000 bytes 4000000
+  }
+}

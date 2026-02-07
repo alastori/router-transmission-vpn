@@ -1,0 +1,9 @@
+table inet fw4 {
+  chain transmission_vpn {
+    tcp sport 9091 oifname "br-lan" counter packets 42 bytes 3024 accept
+    oifname "br-lan" udp dport 53 counter packets 0 bytes 0 accept
+    oifname "lo" counter packets 5 bytes 360 accept
+    oifname "ovpnclient1" counter packets 1234 bytes 567890 accept
+    counter packets 15 bytes 1200 reject
+  }
+}

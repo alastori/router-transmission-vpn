@@ -1,0 +1,7 @@
+table inet fw4 {
+  chain output {
+    type filter hook output priority 0; policy accept;
+    meta skuid 224 jump transmission_vpn
+    counter packets 50000 bytes 4000000
+  }
+}
