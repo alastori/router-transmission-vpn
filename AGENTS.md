@@ -9,6 +9,9 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on a GL-AXT1
   - `99-transmission-vpn` → `/etc/hotplug.d/iface/99-transmission-vpn` (hotplug event handler)
   - `transmission-diag.sh` → `/etc/transmission-diag.sh` (diagnostic tool)
   - `transmission-README` → `/etc/transmission/README` (on-router quick reference)
+  - `transmission-subtitles.sh` → `/etc/transmission-subtitles.sh` (script-torrent-done hook for auto subtitle downloads)
+  - `oshash.lua` → `/etc/transmission/oshash.lua` (OpenSubtitles hash computation, Lua 5.1)
+  - `opensubtitles.conf.example` → `/etc/transmission/opensubtitles.conf` (template, deployed only if not present)
 - `deploy.sh` — SCP+SSH deployment to the router
 - `test/` — Docker-based test suite (see `HANDOFF-test-suite.md` for implementation spec)
 
@@ -19,6 +22,8 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on a GL-AXT1
 - VPN interface: `ovpnclient1` (OpenVPN)
 - Transmission 4.x, UID 224
 - RPC: `192.168.8.1:9091`
+- Subtitle dependencies: `curl`, `ca-bundle` (required); `ffprobe` (optional, for embedded sub detection)
+- OpenSubtitles config: `/etc/transmission/opensubtitles.conf` (credentials + feature flags)
 
 ## Scripts use POSIX sh
 

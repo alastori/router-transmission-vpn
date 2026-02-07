@@ -9,4 +9,4 @@ services:
     security_opt:
       - apparmor:unconfined
     tmpfs:
-      - /tmp:size=10M
+      - /tmp:size=10M,exec

@@ -1,0 +1,10 @@
+# OpenSubtitles.com configuration for transmission-subtitles.sh
+# Copy to /etc/transmission/opensubtitles.conf and fill in your credentials.
+# Create an account and API key at https://www.opensubtitles.com/
+
+OS_API_KEY="your_api_key_here"
+OS_USER="your_username"
+OS_PASS="your_password"
+OS_LANG="en"
+OS_DOWNLOAD_SUBS="yes"       # Set to "no" to disable subtitle downloading entirely
+OS_DETECT_EMBEDDED="yes"     # Set to "no" to skip embedded subtitle detection (always download)

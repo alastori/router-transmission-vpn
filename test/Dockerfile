@@ -3,7 +3,8 @@ FROM alpine:3.21
 RUN apk add --no-cache \
     bash bats coreutils iproute2 procps \
     transmission-daemon transmission-remote \
-    util-linux net-tools curl busybox-extras grep sed
+    util-linux net-tools curl busybox-extras grep sed \
+    lua5.1
 
 # Install bats-support + bats-assert libraries
 RUN mkdir -p /opt/bats-libs && \
@@ -11,11 +12,13 @@ RUN mkdir -p /opt/bats-libs && \
     wget -qO- https://github.com/bats-core/bats-assert/archive/refs/tags/v2.1.0.tar.gz | tar xz -C /opt/bats-libs
 
 # Copy production scripts to OpenWrt-expected paths
-RUN mkdir -p /etc/hotplug.d/iface
+RUN mkdir -p /etc/hotplug.d/iface /etc/transmission
 COPY scripts/transmission-watchdog.sh /etc/transmission-watchdog.sh
 COPY scripts/99-transmission-vpn      /etc/hotplug.d/iface/99-transmission-vpn
 COPY scripts/transmission-diag.sh     /etc/transmission-diag.sh
-RUN chmod +x /etc/transmission-watchdog.sh /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-diag.sh
+COPY scripts/transmission-subtitles.sh /etc/transmission-subtitles.sh
+COPY scripts/oshash.lua                /etc/transmission/oshash.lua
+RUN chmod +x /etc/transmission-watchdog.sh /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-diag.sh /etc/transmission-subtitles.sh
 
 # Patch RPC address for container testing (router IP → localhost)
 RUN sed -i 's/192\.168\.8\.1:9091/127.0.0.1:9091/g' \
