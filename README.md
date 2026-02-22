@@ -72,7 +72,9 @@ scripts/
   transmission-subtitles.sh  → /etc/transmission-subtitles.sh
   oshash.lua                 → /etc/transmission/oshash.lua
   macfilter-apply.sh         → /etc/macfilter-apply.sh (2.4 GHz MAC deny, called from rc.local)
+  reboot-test.sh             → /etc/reboot-test.sh (12-check post-reboot verification)
 deploy.sh                    # SCP + SSH deployment
+backup.sh                   # UCI config backup to local .backups/ (gitignored)
 test/                        # Docker-based test suite
 ```
 
@@ -96,6 +98,29 @@ Key findings from deployment:
 - procd `respawn` races with hotplug `stop` — nft fail-closed prevents leaks regardless of daemon state
 - `pgrep -x` truncates on BusyBox — use `pgrep -f` for reliable matching
 - OpenWrt `scp` needs `-O` flag (no sftp-server)
+
+---
+
+## Maintenance
+
+### Backup Router Config
+
+```bash
+./backup.sh                  # backs up to .backups/<timestamp>/
+./backup.sh 192.168.8.100   # or specify a different router IP
+```
+
+Exports UCI config (all packages + individual), key files (rc.local, crontab, macfilter, opensubtitles.conf), and installed package list. Backups are stored in `.backups/` (gitignored — contains credentials).
+
+**Good practice**: run `./backup.sh` before firmware updates and after major config changes.
+
+### Post-Reboot Verification
+
+```bash
+ssh root@192.168.8.1 /etc/reboot-test.sh
+```
+
+Runs 12 checks: SD card, minidlna, Transmission, WireGuard, nft chain, MAC filter (UCI + hostapd_cli), WiFi 7, watchdog cron, UID routing, DHCP static leases, dnsmasq. Exit code = number of failures.
 
 ---
 
