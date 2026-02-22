@@ -34,7 +34,7 @@ teardown() {
 
   INTERFACE=ovpnclient1 ACTION=ifdown run "$HOTPLUG"
   assert_success
-  assert_log_contains "VPN down"
+  assert_log_contains "VPN (ovpnclient1) down"
 }
 
 # ── 3. ifup → starts and reannounces ──────────────────────────────
@@ -44,7 +44,7 @@ teardown() {
 
   INTERFACE=ovpnclient1 ACTION=ifup run "$HOTPLUG"
   assert_success
-  assert_log_contains "VPN up (10.8.0.2)"
+  assert_log_contains "VPN (ovpnclient1) up (10.8.0.2)"
   assert_log_contains "Reannounced"
 }
 

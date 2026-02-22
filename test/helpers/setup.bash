@@ -125,4 +125,7 @@ clean_state() {
   rm -f /tmp/transmission-watchdog.last.init
   touch /tmp/uci_store
   touch /tmp/test_syslog
+  # Set RPC bind to localhost for test container (scripts read from UCI dynamically)
+  uci_set "transmission.@transmission[0].rpc_bind_address" "127.0.0.1"
+  uci_set "transmission.@transmission[0].rpc_port" "9091"
 }
