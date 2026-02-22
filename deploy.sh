@@ -5,12 +5,14 @@
 # Copies all scripts to the router and installs the watchdog cron job.
 # Note: Uses scp -O (legacy SCP protocol) for OpenWrt compatibility (no sftp-server).
 
+set -e
+
 ROUTER="${1:-192.168.8.1}"
 SCRIPT_DIR="$(cd "$(dirname "$0")/scripts" && pwd)"
 
 echo "Deploying to root@$ROUTER ..."
 
-# Copy scripts to the router
+# Copy scripts to the router (set -e will abort on any failure)
 scp -O "$SCRIPT_DIR/transmission-watchdog.sh"  "root@$ROUTER:/etc/transmission-watchdog.sh"
 scp -O "$SCRIPT_DIR/transmission-diag.sh"      "root@$ROUTER:/etc/transmission-diag.sh"
 scp -O "$SCRIPT_DIR/99-transmission-vpn"        "root@$ROUTER:/etc/hotplug.d/iface/99-transmission-vpn"
@@ -24,8 +26,12 @@ scp -O "$SCRIPT_DIR/on-complete.sh"             "root@$ROUTER:/etc/transmission/
 ssh "root@$ROUTER" 'test -f /etc/transmission/opensubtitles.conf' 2>/dev/null || \
   scp -O "$SCRIPT_DIR/opensubtitles.conf.example" "root@$ROUTER:/etc/transmission/opensubtitles.conf"
 
+echo "All files copied. Configuring..."
+
 # Make scripts executable, install cron, configure script-torrent-done, reload firewall
 ssh "root@$ROUTER" '
+  set -e
+
   chmod +x /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
            /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-subtitles.sh \
            /etc/transmission/on-complete.sh /etc/firewall.user
@@ -44,7 +50,7 @@ ssh "root@$ROUTER" '
 
   /etc/init.d/transmission restart
 
-  echo "Done. Verifying..."
+  echo "Verifying..."
   echo "  Cron: $(crontab -l 2>/dev/null | grep watchdog)"
   echo "  Scripts:"
   ls -la /etc/transmission-watchdog.sh /etc/transmission-diag.sh \

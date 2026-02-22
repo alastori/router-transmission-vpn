@@ -6,11 +6,14 @@
 # For WireGuard, an additional rule allows encapsulated UDP packets to the VPN endpoint.
 
 U="$(id -u transmission 2>/dev/null || echo 224)"
-RPC="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
+RPC_PORT="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
 
 # Auto-detect VPN interface (WireGuard or OpenVPN)
 IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
-[ -n "$IF" ] || IF=wgclient
+if [ -z "$IF" ]; then
+  IF=wgclient
+  logger -t firewall.user "WARNING: No VPN interface found, defaulting to $IF"
+fi
 
 # Create/refresh the per-UID chain
 if nft list chain inet fw4 transmission_vpn >/dev/null 2>&1; then
@@ -20,9 +23,9 @@ else
 fi
 
 # UI replies to LAN (+ guest if present)
-nft add rule inet fw4 transmission_vpn tcp sport $RPC oifname "br-lan" counter accept
+nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-lan" counter accept
 [ -d /sys/class/net/br-guest ] && \
-nft add rule inet fw4 transmission_vpn tcp sport $RPC oifname "br-guest" counter accept
+nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-guest" counter accept
 
 # DNS to router on LAN (UDP/TCP 53)
 nft add rule inet fw4 transmission_vpn oifname "br-lan" udp dport 53 counter accept
@@ -39,8 +42,15 @@ nft add rule inet fw4 transmission_vpn oifname "$IF" counter accept
 # WireGuard UDP packet to the endpoint via eth0. Without this rule, the nft chain
 # sees UID 224 traffic on eth0 (not wgclient) and rejects it.
 VPNEP="$(uci -q get network.wgpeer0.endpoint_host)"
+VPNPORT="$(uci -q get network.wgpeer0.endpoint_port || echo 51820)"
+if [ -n "$VPNEP" ]; then
+  # Validate endpoint is an IP address or hostname (prevent injection)
+  case "$VPNEP" in
+    *[!a-zA-Z0-9._:-]*) logger -t firewall.user "ERROR: invalid endpoint_host '$VPNEP'"; VPNEP="" ;;
+  esac
+fi
 [ -n "$VPNEP" ] && \
-nft add rule inet fw4 transmission_vpn udp dport 51820 ip daddr "$VPNEP" counter accept comment \"WireGuard-encap\"
+nft add rule inet fw4 transmission_vpn udp dport "$VPNPORT" ip daddr "$VPNEP" counter accept comment \"WireGuard-encap\"
 
 # Fail-closed: reject everything else
 nft add rule inet fw4 transmission_vpn counter reject

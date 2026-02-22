@@ -13,6 +13,11 @@ SRC="$TR_TORRENT_DIR/$TR_TORRENT_NAME"
 
 logger -t "$TAG" "Torrent complete: $TR_TORRENT_NAME"
 
+if [ ! -d "$MOVIES" ]; then
+    logger -t "$TAG" "ERROR: Movies directory not found: $MOVIES (SD card not mounted?)"
+    exit 1
+fi
+
 if [ -d "$SRC" ]; then
     # Directory (multi-file torrent) — copy entire folder
     cp -a "$SRC" "$MOVIES/"
