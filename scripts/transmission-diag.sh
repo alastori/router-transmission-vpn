@@ -2,8 +2,12 @@
 # /etc/transmission-diag.sh — One-command diagnostic for Transmission VPN setup
 # Run: /etc/transmission-diag.sh
 # Review: logread | grep watchdog  (for watchdog history)
+#
+# Works with both OpenVPN (ovpnclient1) and WireGuard (wgclient).
 
-TR="192.168.8.1:9091"
+RPC="$(uci -q get transmission.@transmission[0].rpc_bind_address || echo 192.168.8.1)"
+RPC_PORT="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
+TR="$RPC:$RPC_PORT"
 PASS="✓ PASS"
 FAIL="✗ FAIL"
 WARN="⚠ WARN"
@@ -13,7 +17,7 @@ divider() { echo ""; echo "═════════════════�
 # -------------------------------------------------------------------
 divider "1. VPN INTERFACE"
 # -------------------------------------------------------------------
-VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(ovpn|tun|wg)')"
+VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
 if [ -n "$VPN_IF" ]; then
     VPN_IP="$(ip -o -4 addr show dev "$VPN_IF" 2>/dev/null | awk '/inet /{print $4}' | cut -d/ -f1)"
     echo "  Interface: $VPN_IF"
@@ -27,14 +31,15 @@ if [ -n "$VPN_IF" ]; then
     echo "  RX bytes:  $RX"
 else
     echo "  Status:    $FAIL — No VPN interface found"
-    VPN_IF="ovpnclient1"
+    VPN_IF="wgclient"
     VPN_IP=""
 fi
 
 # -------------------------------------------------------------------
 divider "2. TRANSMISSION DAEMON"
 # -------------------------------------------------------------------
-PID=$(pgrep -x transmission-da 2>/dev/null)
+# Note: pgrep -x truncates on BusyBox; use pgrep -f for reliable matching
+PID=$(pgrep -f transmission-daemon 2>/dev/null | head -1)
 if [ -n "$PID" ]; then
     echo "  PID:       $PID"
     echo "  Status:    $PASS — daemon is running"
@@ -145,8 +150,8 @@ ip route show | grep -E "(ovpn|tun|wg)" | head -10 | while read line; do
 done
 
 echo ""
-echo "  IP rules:"
-ip rule show 2>/dev/null | head -20 | while read line; do
+echo "  IP rules (UID routing for Transmission):"
+ip rule show 2>/dev/null | grep -E "(uidrange|1001)" | while read line; do
     echo "    $line"
 done
 

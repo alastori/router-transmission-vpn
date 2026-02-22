@@ -1,0 +1,66 @@
+#!/bin/sh
+# /etc/firewall.user — fw4/nft guard: Transmission uses VPN only; UI replies + DNS on LAN.
+# Sourced by fw4 on firewall reload. Creates per-UID chain for Transmission.
+#
+# Works with both OpenVPN (ovpnclient1) and WireGuard (wgclient).
+# For WireGuard, an additional rule allows encapsulated UDP packets to the VPN endpoint.
+
+U="$(id -u transmission 2>/dev/null || echo 224)"
+RPC_PORT="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
+
+# Auto-detect VPN interface (WireGuard or OpenVPN)
+IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
+if [ -z "$IF" ]; then
+  IF=wgclient
+  logger -t firewall.user "WARNING: No VPN interface found, defaulting to $IF"
+fi
+
+# Create/refresh the per-UID chain
+if nft list chain inet fw4 transmission_vpn >/dev/null 2>&1; then
+  nft flush chain inet fw4 transmission_vpn
+else
+  nft add chain inet fw4 transmission_vpn
+fi
+
+# UI replies to LAN (+ guest if present)
+nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-lan" counter accept
+[ -d /sys/class/net/br-guest ] && \
+nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-guest" counter accept
+
+# DNS to router on LAN (UDP/TCP 53)
+nft add rule inet fw4 transmission_vpn oifname "br-lan" udp dport 53 counter accept
+nft add rule inet fw4 transmission_vpn oifname "br-lan" tcp dport 53 counter accept
+
+# Loopback
+nft add rule inet fw4 transmission_vpn oifname "lo" counter accept
+
+# VPN egress for peers + trackers
+nft add rule inet fw4 transmission_vpn oifname "$IF" counter accept
+
+# WireGuard encapsulated traffic to VPN endpoint
+# When Transmission sends through wgclient, the kernel encrypts and sends the
+# WireGuard UDP packet to the endpoint via eth0. Without this rule, the nft chain
+# sees UID 224 traffic on eth0 (not wgclient) and rejects it.
+VPNEP="$(uci -q get network.wgpeer0.endpoint_host)"
+VPNPORT="$(uci -q get network.wgpeer0.endpoint_port || echo 51820)"
+if [ -n "$VPNEP" ]; then
+  # Validate endpoint is an IP address or hostname (prevent injection)
+  case "$VPNEP" in
+    *[!a-zA-Z0-9._:-]*) logger -t firewall.user "ERROR: invalid endpoint_host '$VPNEP'"; VPNEP="" ;;
+  esac
+fi
+[ -n "$VPNEP" ] && \
+nft add rule inet fw4 transmission_vpn udp dport "$VPNPORT" ip daddr "$VPNEP" counter accept comment \"WireGuard-encap\"
+
+# Fail-closed: reject everything else
+nft add rule inet fw4 transmission_vpn counter reject
+
+# Ensure jump at top of OUTPUT for Transmission UID
+nft list chain inet fw4 output | grep -q "meta skuid $U .* jump transmission_vpn" || \
+  nft insert rule inet fw4 output position 0 meta skuid $U counter jump transmission_vpn
+
+# Route all Transmission UID traffic through VPN routing table
+# bind_address_ipv4 only affects peer sockets, not tracker HTTP/UDP connections.
+# Without this rule, tracker connections use the main routing table.
+ip rule del uidrange "$U-$U" lookup 1001 2>/dev/null
+ip rule add uidrange "$U-$U" lookup 1001 priority 99

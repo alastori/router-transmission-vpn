@@ -110,3 +110,27 @@ teardown() {
   refute_log_contains "STALE"
   refute_log_contains "Restarting"
 }
+
+# ── WireGuard-specific tests ────────────────────────────────────
+
+@test "watchdog: WireGuard VPN — detects interface and starts daemon" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  setup_tx_counter wgclient
+
+  run /etc/transmission-watchdog.sh
+  assert_success
+  assert_log_contains "started and reannounced"
+}
+
+@test "watchdog: WireGuard VPN healthy — exits silently" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  setup_tx_counter wgclient 5000
+  start_transmission
+
+  echo "active-with-peers" > /tmp/tr_override_mode
+
+  run /etc/transmission-watchdog.sh
+  assert_success
+  refute_log_contains "STALE"
+  refute_log_contains "Restarting"
+}

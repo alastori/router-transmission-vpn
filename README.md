@@ -1,23 +1,27 @@
 # router-transmission-vpn
 
-Shell scripts that manage the Transmission BitTorrent daemon on a GL-AXT1800 (Flint) OpenWrt router, ensuring **all peer traffic flows exclusively through the VPN tunnel**.
+Shell scripts that manage the Transmission BitTorrent daemon on an OpenWrt router, ensuring **all peer traffic flows exclusively through the VPN tunnel**.
+
+Originally built for GL-AXT1800 (OpenVPN), now updated for GL-BE9300 Flint 3 (WireGuard). Scripts auto-detect VPN type.
 
 ## What This Does
 
 | Script | Role | Trigger |
 |--------|------|---------|
-| `transmission-watchdog.sh` | Detects "stale daemon" (running but stuck in tracker backoff) and auto-recovers | Cron, every 10 min |
+| `firewall.user` | nft per-UID chain + UID routing — VPN-only egress for Transmission | Firewall reload |
 | `99-transmission-vpn` | Stops Transmission on VPN down, rebinds + reannounces on VPN up | Hotplug (interface events) |
+| `transmission-watchdog.sh` | Detects "stale daemon" (running but stuck in tracker backoff) and auto-recovers | Cron, every 10 min |
 | `transmission-diag.sh` | One-command diagnostic with PASS/FAIL/WARN for every component | Manual |
+| `on-complete.sh` | Copies completed downloads to Movies folder for DLNA serving | Transmission done-script |
 
 ## Quick Start
 
 ### Prerequisites
 
-- GL-AXT1800 running OpenWrt 23.05 with `fw4`/nftables
-- OpenVPN client configured (interface: `ovpnclient1`)
-- Transmission 4.x installed (`opkg install transmission-daemon-openssl transmission-cli-openssl`)
-- nftables chain `transmission_vpn` restricting UID 224 to VPN-only egress
+- OpenWrt router with `fw4`/nftables
+- VPN client configured (WireGuard `wgclient` or OpenVPN `ovpnclient1`)
+- Transmission 4.x installed (`opkg install transmission-daemon transmission-web transmission-remote`)
+- VPN routing table 1001 with default route through VPN interface
 
 ### Deploy
 
@@ -49,23 +53,48 @@ logread | grep transmission-vpn-hotplug
 
 ## Target Environment
 
-- **Device:** GL-AXT1800 (Flint), OpenWrt 23.05
+- **Device:** GL-BE9300 (Flint 3), OpenWrt (also tested on GL-AXT1800)
 - **Firewall:** fw4 / nftables
-- **VPN:** OpenVPN, interface `ovpnclient1`
+- **VPN:** WireGuard (`wgclient`) or OpenVPN (`ovpnclient1`) — auto-detected
 - **Transmission:** 4.x, UID 224
-- **RPC:** `192.168.8.1:9091`
+- **RPC:** `192.168.8.1:9091` (LAN-only bind)
 
 ## Repository Structure
 
 ```
 scripts/
-  transmission-watchdog.sh    → /etc/transmission-watchdog.sh
-  99-transmission-vpn         → /etc/hotplug.d/iface/99-transmission-vpn
-  transmission-diag.sh        → /etc/transmission-diag.sh
-  transmission-README         → /etc/transmission/README
-deploy.sh                     # SCP + SSH deployment
-test/                         # Docker-based test suite
+  firewall.user              → /etc/firewall.user (nft chain + UID routing)
+  99-transmission-vpn        → /etc/hotplug.d/iface/99-transmission-vpn
+  transmission-watchdog.sh   → /etc/transmission-watchdog.sh
+  transmission-diag.sh       → /etc/transmission-diag.sh
+  on-complete.sh             → /etc/transmission/on-complete.sh
+  transmission-README        → /etc/transmission/README
+  transmission-subtitles.sh  → /etc/transmission-subtitles.sh
+  oshash.lua                 → /etc/transmission/oshash.lua
+deploy.sh                    # SCP + SSH deployment
+test/                        # Docker-based test suite
 ```
+
+## Architecture
+
+```
+Transmission (UID 224)
+    ├── ip rule: uidrange 224-224 → table 1001 (VPN)
+    └── nft chain transmission_vpn (OUTPUT):
+          ├── tcp sport 9091 → br-lan     ACCEPT  (RPC replies)
+          ├── udp/tcp dport 53 → br-lan   ACCEPT  (DNS)
+          ├── oifname lo                   ACCEPT  (loopback)
+          ├── oifname wgclient             ACCEPT  (VPN peers+trackers)
+          ├── udp dport 51820 → VPN EP    ACCEPT  (WireGuard encap)
+          └── REJECT                               (fail-closed)
+```
+
+Key findings from deployment:
+- `bind_address_ipv4` only affects peer sockets, not tracker connections — UID routing is required
+- WireGuard kernel encapsulation sends encrypted packets via `eth0`, not `wgclient` — needs explicit nft rule
+- procd `respawn` races with hotplug `stop` — nft fail-closed prevents leaks regardless of daemon state
+- `pgrep -x` truncates on BusyBox — use `pgrep -f` for reliable matching
+- OpenWrt `scp` needs `-O` flag (no sftp-server)
 
 ---
 

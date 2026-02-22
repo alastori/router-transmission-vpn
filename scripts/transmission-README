@@ -1,7 +1,7 @@
 Transmission VPN-Only — Quick Reference
 ========================================
-Router: GL-AXT1800 | OpenWrt 23.05 | fw4/nft
-VPN: ovpnclient1 | RPC: 192.168.8.1:9091
+Router: GL-BE9300 (Flint 3) | OpenWrt | fw4/nft
+VPN: wgclient (WireGuard) | RPC: 192.168.8.1:9091
 
 QUICK COMMANDS
 --------------
@@ -21,6 +21,7 @@ FILE LOCATIONS
   Hotplug:       /etc/hotplug.d/iface/99-transmission-vpn
   Watchdog:      /etc/transmission-watchdog.sh
   Diagnostics:   /etc/transmission-diag.sh
+  Done script:   /etc/transmission/on-complete.sh (copies to Movies for DLNA)
   This file:     /etc/transmission/README
 
 KNOWN FAILURE MODES
@@ -38,8 +39,9 @@ KNOWN FAILURE MODES
      Fix:      Hotplug script auto-rebinds on VPN ifup
 
   3. VPN down
-     Symptom:  No ovpnclient1 interface, Transmission can't reach peers
+     Symptom:  No wgclient interface, Transmission can't reach peers
      Fix:      Hotplug auto-stops Transmission; auto-starts on VPN return
+     Note:     procd may respawn daemon, but nft fail-closed blocks all non-VPN traffic
 
   4. Ghost magnets in Web UI
      Symptom:  Web UI shows "Magnetized transfer - retrieving metadata (0.0%)"
@@ -48,13 +50,23 @@ KNOWN FAILURE MODES
                (e.g. duplicates). They only exist in the browser, not the daemon.
      Fix:      Hard-refresh the Web UI (Cmd+Shift+R / Ctrl+Shift+R)
 
+  5. Tracker connections fail despite VPN being up
+     Symptom:  bind_address_ipv4 set correctly, VPN tunnel active, but trackers unreachable
+     Cause:    bind_address_ipv4 only affects peer sockets, not tracker connections.
+               Tracker HTTP/UDP goes through main routing table, rejected by nft.
+     Fix:      ip rule add uidrange 224-224 lookup 1001 priority 99
+               (done automatically by /etc/firewall.user)
+
 ARCHITECTURE
 ------------
   - nft chain "transmission_vpn" restricts UID 224 to VPN-only egress
+  - ip rule routes all UID 224 traffic through VPN routing table (1001)
+  - WireGuard encap rule allows kernel to send encrypted packets to VPN endpoint
   - Hotplug stops/starts daemon + rebinds IP on VPN changes
   - Watchdog cron detects stale state (0 peers + stagnant counters)
   - Firewall fail-closed: if VPN drops, peer traffic is rejected (UI stays)
+  - on-complete.sh copies finished downloads to Movies folder for DLNA serving
 
 FULL DOCS
 ---------
-  See Obsidian: "Router config - transmission via VPN only"
+  See Obsidian: "Home Network - GL-iNet Flint 3 Setup"

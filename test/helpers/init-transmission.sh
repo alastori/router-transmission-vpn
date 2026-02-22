@@ -17,4 +17,7 @@ case "$1" in
   status)
     pgrep -x transmission-da >/dev/null 2>&1 && echo "running" || echo "stopped"
     ;;
+  enable|disable)
+    # No-op in test container (procd boot management)
+    ;;
 esac

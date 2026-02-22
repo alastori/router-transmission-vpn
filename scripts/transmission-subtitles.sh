@@ -65,7 +65,9 @@ get_token() {
     response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/login" \
         -H "Api-Key: $OS_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{\"username\":\"$OS_USER\",\"password\":\"$OS_PASS\"}")
+        -d "$(printf '{"username":"%s","password":"%s"}' \
+             "$(echo "$OS_USER" | sed 's/["\\]/\\&/g')" \
+             "$(echo "$OS_PASS" | sed 's/["\\]/\\&/g')")")
 
     http_code=$(echo "$response" | tail -1)
     body=$(echo "$response" | sed '$d')
@@ -250,10 +252,12 @@ find_videos() {
 }
 
 count=0
-find_videos | while IFS= read -r video; do
+while IFS= read -r video; do
     [ -n "$video" ] || continue
     process_video "$video"
     count=$((count + 1))
-done
+done <<EOF
+$(find_videos)
+EOF
 
-log "Done processing torrent: $TR_TORRENT_NAME"
+log "Done processing torrent: $TR_TORRENT_NAME ($count videos)"
