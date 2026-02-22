@@ -71,6 +71,7 @@ scripts/
   transmission-README        → /etc/transmission/README
   transmission-subtitles.sh  → /etc/transmission-subtitles.sh
   oshash.lua                 → /etc/transmission/oshash.lua
+  macfilter-apply.sh         → /etc/macfilter-apply.sh (2.4 GHz MAC deny, called from rc.local)
 deploy.sh                    # SCP + SSH deployment
 test/                        # Docker-based test suite
 ```

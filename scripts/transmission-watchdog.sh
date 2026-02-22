@@ -55,8 +55,8 @@ VPN_TX=$(cat /sys/class/net/"$VPN_IF"/statistics/tx_bytes 2>/dev/null || echo 0)
 PREV_TX=0
 [ -f "$STATE_FILE" ] && PREV_TX=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
 
-# Save current counter for next run
-echo "$VPN_TX" > "$STATE_FILE"
+# Save current counter for next run (atomic write to avoid corruption)
+echo "$VPN_TX" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 
 # If peers > 0 or VPN counter is growing, everything is fine
 [ "${PEERS_SESSION:-0}" -gt 0 ] && exit 0
