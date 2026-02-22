@@ -34,7 +34,7 @@ teardown() {
 
   INTERFACE=ovpnclient1 ACTION=ifdown run "$HOTPLUG"
   assert_success
-  assert_log_contains "VPN down"
+  assert_log_contains "VPN (ovpnclient1) down"
 }
 
 # ── 3. ifup → starts and reannounces ──────────────────────────────
@@ -44,7 +44,7 @@ teardown() {
 
   INTERFACE=ovpnclient1 ACTION=ifup run "$HOTPLUG"
   assert_success
-  assert_log_contains "VPN up (10.8.0.2)"
+  assert_log_contains "VPN (ovpnclient1) up (10.8.0.2)"
   assert_log_contains "Reannounced"
 }
 
@@ -73,4 +73,36 @@ teardown() {
   INTERFACE=ovpnclient1 ACTION=ifup run "$HOTPLUG"
   assert_success
   assert_log_contains "no IP assigned yet"
+}
+
+# ── WireGuard-specific tests ────────────────────────────────────
+
+@test "hotplug: WireGuard ifdown — stops transmission" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  start_transmission
+
+  INTERFACE=wgclient ACTION=ifdown run "$HOTPLUG"
+  assert_success
+  assert_log_contains "VPN (wgclient) down"
+}
+
+@test "hotplug: WireGuard ifup — starts and reannounces" {
+  create_vpn_interface wgclient 10.2.0.2/32
+
+  INTERFACE=wgclient ACTION=ifup run "$HOTPLUG"
+  assert_success
+  assert_log_contains "VPN (wgclient) up (10.2.0.2)"
+  assert_log_contains "Reannounced"
+}
+
+@test "hotplug: WireGuard ifup with IP change — updates bind address" {
+  create_vpn_interface wgclient 10.2.0.99/32
+  uci_set "transmission.@transmission[0].bind_address_ipv4" "10.2.0.2"
+
+  INTERFACE=wgclient ACTION=ifup run "$HOTPLUG"
+  assert_success
+  assert_log_contains "VPN IP changed"
+
+  run grep "bind_address_ipv4" /tmp/uci_store
+  assert_output --partial "10.2.0.99"
 }

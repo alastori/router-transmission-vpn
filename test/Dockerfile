@@ -18,13 +18,11 @@ COPY scripts/99-transmission-vpn      /etc/hotplug.d/iface/99-transmission-vpn
 COPY scripts/transmission-diag.sh     /etc/transmission-diag.sh
 COPY scripts/transmission-subtitles.sh /etc/transmission-subtitles.sh
 COPY scripts/oshash.lua                /etc/transmission/oshash.lua
-RUN chmod +x /etc/transmission-watchdog.sh /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-diag.sh /etc/transmission-subtitles.sh
-
-# Patch RPC address for container testing (router IP → localhost)
-RUN sed -i 's/192\.168\.8\.1:9091/127.0.0.1:9091/g' \
-    /etc/transmission-watchdog.sh \
-    /etc/hotplug.d/iface/99-transmission-vpn \
-    /etc/transmission-diag.sh
+COPY scripts/on-complete.sh            /etc/transmission/on-complete.sh
+COPY scripts/firewall.user             /etc/firewall.user
+RUN chmod +x /etc/transmission-watchdog.sh /etc/hotplug.d/iface/99-transmission-vpn \
+             /etc/transmission-diag.sh /etc/transmission-subtitles.sh \
+             /etc/transmission/on-complete.sh /etc/firewall.user
 
 # Rename real transmission-remote so the wrapper can delegate to it
 RUN mv /usr/bin/transmission-remote /usr/bin/transmission-remote-real 2>/dev/null || true

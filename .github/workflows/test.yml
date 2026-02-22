@@ -1,0 +1,19 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  bats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test container
+        run: docker compose -f test/docker-compose.yml build
+
+      - name: Run bats tests
+        run: docker compose -f test/docker-compose.yml run --rm test

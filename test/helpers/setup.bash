@@ -18,6 +18,8 @@ create_vpn_interface() {
 remove_vpn_interface() {
   local name="${1:-ovpnclient1}"
   ip link del "$name" 2>/dev/null || true
+  # Also clean up wgclient if present (tests may create either)
+  [ "$name" != "wgclient" ] && ip link del wgclient 2>/dev/null || true
 }
 
 # ── sysfs tx_bytes counter simulation ───────────────────────────────
@@ -118,6 +120,7 @@ clean_state() {
   rm -f /tmp/test_syslog
   rm -f /tmp/uci_store
   rm -f /tmp/nft_mode
+  rm -f /tmp/nft_calls
   rm -f /tmp/ping_mode
   rm -f /tmp/test_crontab
   rm -f /tmp/tr_override_mode
@@ -125,4 +128,7 @@ clean_state() {
   rm -f /tmp/transmission-watchdog.last.init
   touch /tmp/uci_store
   touch /tmp/test_syslog
+  # Set RPC bind to localhost for test container (scripts read from UCI dynamically)
+  uci_set "transmission.@transmission[0].rpc_bind_address" "127.0.0.1"
+  uci_set "transmission.@transmission[0].rpc_port" "9091"
 }
