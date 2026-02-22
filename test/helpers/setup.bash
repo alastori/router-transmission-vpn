@@ -125,6 +125,7 @@ clean_state() {
   rm -f /tmp/test_crontab
   rm -f /tmp/tr_override_mode
   rm -f /tmp/transmission-watchdog.last
+  rm -f /tmp/transmission-watchdog.last.tmp
   rm -f /tmp/transmission-watchdog.last.init
   touch /tmp/uci_store
   touch /tmp/test_syslog
