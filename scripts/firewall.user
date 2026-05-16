@@ -64,3 +64,11 @@ nft list chain inet fw4 output | grep -q "meta skuid $U .* jump transmission_vpn
 # Without this rule, tracker connections use the main routing table.
 ip rule del uidrange "$U-$U" lookup 1001 2>/dev/null
 ip rule add uidrange "$U-$U" lookup 1001 priority 99
+
+# Exempt LAN/guest destinations so web UI replies (SYN+ACK from UID 224)
+# are not policy-routed out wgclient. Without these, LAN clients cannot
+# reach the Transmission web UI on :9091.
+ip rule del to 192.168.8.0/24 uidrange "$U-$U" lookup main 2>/dev/null
+ip rule add to 192.168.8.0/24 uidrange "$U-$U" lookup main priority 90
+ip rule del to 192.168.9.0/24 uidrange "$U-$U" lookup main 2>/dev/null
+ip rule add to 192.168.9.0/24 uidrange "$U-$U" lookup main priority 91
