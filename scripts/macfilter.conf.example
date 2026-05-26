@@ -1,0 +1,14 @@
+# macfilter.conf — device MAC lists for macfilter-apply.sh
+# Copy to /etc/macfilter.conf on the router and fill in your real MACs.
+# Kept out of version control so device identifiers stay private.
+#
+# Space-separated MAC lists. Leave a list empty ("") to skip it.
+
+# Denied on jows-palencia 2.4 GHz (wlan0 + wlan02 MLO) to force these devices
+# onto 5 GHz (bandwidth, e.g. 4K HDR DLNA streaming).
+MACS="AA:BB:CC:11:22:01 AA:BB:CC:11:22:02"
+
+# Denied on jows-palencia-vpn 5 GHz (wlan11) to force these devices onto 2.4 GHz
+# (range; the VPN caps throughput well under the 2.4 GHz link rate, so band
+# does not matter and the longer 2.4 GHz reach wins).
+VPN5_DENY="AA:BB:CC:11:22:01"

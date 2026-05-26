@@ -14,25 +14,30 @@
 # (the opposite of the main SSID). It is therefore denied on the 5 GHz guest VAP
 # wlan11 (VPN5_DENY below) while still allowed on the 2.4 GHz guest VAP wlan01.
 #
-# To add a new device:
-#   - Force to 5 GHz on jows-palencia (bandwidth): add MAC to MACS below, then
+# Device MAC lists are read from /etc/macfilter.conf, which is NOT in version
+# control so device identifiers stay out of the public repo. See the tracked
+# template macfilter.conf.example for the format.
+#
+# To add a new device, edit /etc/macfilter.conf on the router:
+#   - Force to 5 GHz on jows-palencia (bandwidth): add MAC to MACS, then
 #       uci add_list wireless.wifi2g.maclist='XX:XX:XX:XX:XX:XX'
 #       uci add_list wireless.wlanmld2g.maclist='XX:XX:XX:XX:XX:XX'
 #       uci commit wireless
-#   - Force to 2.4 GHz on jows-palencia-vpn (range): add MAC to VPN5_DENY below.
-#   Then deploy to router: ./deploy.sh
+#   - Force to 2.4 GHz on jows-palencia-vpn (range): add MAC to VPN5_DENY.
 
 TAG="macfilter"
 SOCK="/var/run/hostapd-wifi0"    # 2.4 GHz radio (wlan0 main, wlan01 guest, wlan02 MLO)
 SOCK5="/var/run/hostapd-wifi1"   # 5 GHz radio  (wlan1 main, wlan11 guest/VPN)
+CONF="/etc/macfilter.conf"
 
-# Denied on jows-palencia 2.4 GHz (wlan0 standard + wlan02 MLO) to force 5 GHz
-MACS="00:00:00:00:00:01 00:00:00:00:00:02 00:00:00:00:00:03 00:00:00:00:00:04 00:00:00:00:00:05"
-
-# Denied on jows-palencia-vpn 5 GHz (wlan11) to force 2.4 GHz — bedroom Samsung
-# TV ("TIZEN"), weak 5 GHz coverage in the bedroom. VPN caps ~40-60 Mbps so the
-# 2.4 GHz link rate is plenty; range matters more than band here.
-VPN5_DENY="00:00:00:00:00:04"
+# Load device lists:
+#   MACS      = denied on jows-palencia 2.4 GHz (wlan0 + wlan02) to force 5 GHz
+#   VPN5_DENY = denied on jows-palencia-vpn 5 GHz (wlan11) to force 2.4 GHz
+if [ ! -f "$CONF" ]; then
+  logger -t "$TAG" "No $CONF found — no MAC lists to apply"
+  exit 0
+fi
+. "$CONF"
 
 # Wait for hostapd to be ready after boot
 sleep 30

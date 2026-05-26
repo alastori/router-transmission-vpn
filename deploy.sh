@@ -24,9 +24,11 @@ scp -O "$SCRIPT_DIR/on-complete.sh"             "root@$ROUTER:/etc/transmission/
 scp -O "$SCRIPT_DIR/macfilter-apply.sh"         "root@$ROUTER:/etc/macfilter-apply.sh"
 scp -O "$SCRIPT_DIR/reboot-test.sh"            "root@$ROUTER:/etc/reboot-test.sh"
 
-# Deploy config template only if not already present (preserve credentials)
+# Deploy config templates only if not already present (preserve credentials / device lists)
 ssh "root@$ROUTER" 'test -f /etc/transmission/opensubtitles.conf' 2>/dev/null || \
   scp -O "$SCRIPT_DIR/opensubtitles.conf.example" "root@$ROUTER:/etc/transmission/opensubtitles.conf"
+ssh "root@$ROUTER" 'test -f /etc/macfilter.conf' 2>/dev/null || \
+  scp -O "$SCRIPT_DIR/macfilter.conf.example" "root@$ROUTER:/etc/macfilter.conf"
 
 echo "All files copied. Configuring..."
 

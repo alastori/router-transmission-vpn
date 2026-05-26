@@ -6,3 +6,6 @@
 .idea/
 .claude/settings.local.json
 .backups/
+
+# Real configs with secrets / device identifiers (only *.conf.example is tracked)
+scripts/*.conf
