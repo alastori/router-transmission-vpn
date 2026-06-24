@@ -18,6 +18,7 @@ FILE LOCATIONS
   Config dir:    /etc/transmission/
   Settings:      /etc/transmission/settings.json
   Firewall:      /etc/firewall.user
+  DNS setup:     /etc/transmission-dns-setup.sh
   Hotplug:       /etc/hotplug.d/iface/99-transmission-vpn
   Watchdog:      /etc/transmission-watchdog.sh
   Diagnostics:   /etc/transmission-diag.sh
@@ -57,9 +58,20 @@ KNOWN FAILURE MODES
      Fix:      ip rule add uidrange 224-224 lookup 1001 priority 99
                (done automatically by /etc/firewall.user)
 
+  6. Tracker DNS should not use normal LAN DNS
+     Symptom:  Tracker traffic is VPN-only, but DNS privacy needs separate verification
+     Design:   UID 224 UDP/TCP 53 is redirected to 127.0.0.1:1053.
+               dhcp.transmission_dns runs as dnsmasq_vpn and forwards only to
+               VPN DNS through table 1001. Main router/LAN DNS stays direct.
+     Check:    nft list chain inet fw4 transmission_dns_redirect
+               nft list chain inet fw4 transmission_dns_vpn
+
 ARCHITECTURE
 ------------
   - nft chain "transmission_vpn" restricts UID 224 to VPN-only egress
+  - nft chain "transmission_dns_redirect" redirects UID 224 DNS to :1053
+  - dnsmasq instance "dhcp.transmission_dns" runs as dnsmasq_vpn
+  - nft chain "transmission_dns_vpn" rejects private resolver DNS fallback
   - ip rule routes all UID 224 traffic through VPN routing table (1001)
   - WireGuard encap rule allows kernel to send encrypted packets to VPN endpoint
   - Hotplug stops/starts daemon + rebinds IP on VPN changes

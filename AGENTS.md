@@ -6,6 +6,7 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on OpenWrt, 
 
 - `scripts/` — Production scripts deployed to the router via `deploy.sh`
   - `firewall.user` → `/etc/firewall.user` (nft per-UID chain + UID routing)
+  - `transmission-dns-setup.sh` → `/etc/transmission-dns-setup.sh` (Transmission-only private dnsmasq instance)
   - `transmission-watchdog.sh` → `/etc/transmission-watchdog.sh` (cron, every 10 min)
   - `99-transmission-vpn` → `/etc/hotplug.d/iface/99-transmission-vpn` (hotplug event handler)
   - `transmission-diag.sh` → `/etc/transmission-diag.sh` (diagnostic tool)
@@ -31,6 +32,7 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on OpenWrt, 
 
 - `bind_address_ipv4` only affects peer sockets — UID routing (`ip rule`) needed for trackers
 - WireGuard encap packets exit via `eth0` not `wgclient` — need explicit nft accept rule
+- Transmission DNS is redirected by UID to the private `dhcp.transmission_dns` dnsmasq instance; keep main router DNS direct for LAN clients
 - procd `respawn` races with hotplug stop — nft fail-closed protects regardless
 - `pgrep -x` truncates on BusyBox — use `pgrep -f transmission-daemon`
 - OpenWrt scp needs `-O` flag (no sftp-server)

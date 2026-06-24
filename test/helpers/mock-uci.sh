@@ -17,6 +17,20 @@ case "$1" in
       exit 1
     fi
     ;;
+  add_list)
+    KEY="${2%%=*}"; VAL="${2#*=}"
+    if grep -qF "$KEY=" "$STORE" 2>/dev/null; then
+      awk -v key="$KEY" -v val="$VAL" 'BEGIN{FS="="; OFS="="} $1==key{$0=key"="$2" "val} {print}' "$STORE" > "${STORE}.tmp"
+      mv "${STORE}.tmp" "$STORE"
+    else
+      echo "$KEY=$VAL" >> "$STORE"
+    fi
+    ;;
+  delete)
+    KEY="$2"
+    awk -v key="$KEY" '$0 !~ "^" key "([.=]|$)"' "$STORE" > "${STORE}.tmp" 2>/dev/null || true
+    mv "${STORE}.tmp" "$STORE"
+    ;;
   set)
     KEY="${2%%=*}"; VAL="${2#*=}"
     if grep -qF "$KEY=" "$STORE" 2>/dev/null; then
