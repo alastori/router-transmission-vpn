@@ -36,6 +36,18 @@ case "$*" in
         ;;
     esac
     ;;
+  *"transmission_dns_redirect"*|*"transmission_dns_vpn"*)
+    case "$MODE" in
+      firewall-fresh|missing)
+        echo "Error: No such file or directory; did you mean chain 'output' in table inet 'fw4'?" >&2
+        exit 1
+        ;;
+      *)
+        cat /opt/test/fixtures/nft/chain-clean.txt
+        exit 0
+        ;;
+    esac
+    ;;
   *"output"*)
     case "$MODE" in
       no-jump)

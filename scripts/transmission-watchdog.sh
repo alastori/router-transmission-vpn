@@ -18,8 +18,8 @@ TR="$RPC:$RPC_PORT"
 
 log() { logger -t "$TAG" "$*"; }
 
-# --- 1) VPN must be up (otherwise hotplug owns lifecycle) ---
-VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
+# --- 1) Client VPN must be up (otherwise hotplug owns lifecycle) ---
+VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wgclient[0-9]*|ovpnclient[0-9]*|tun[0-9]*)$')"
 if [ -z "$VPN_IF" ]; then
     log "VPN interface not found — skipping (hotplug handles this)"
     exit 0

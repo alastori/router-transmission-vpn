@@ -14,6 +14,7 @@ RUN mkdir -p /opt/bats-libs && \
 # Copy production scripts to OpenWrt-expected paths
 RUN mkdir -p /etc/hotplug.d/iface /etc/transmission
 COPY scripts/transmission-watchdog.sh /etc/transmission-watchdog.sh
+COPY scripts/transmission-dns-setup.sh /etc/transmission-dns-setup.sh
 COPY scripts/99-transmission-vpn      /etc/hotplug.d/iface/99-transmission-vpn
 COPY scripts/transmission-diag.sh     /etc/transmission-diag.sh
 COPY scripts/transmission-subtitles.sh /etc/transmission-subtitles.sh
@@ -21,6 +22,7 @@ COPY scripts/oshash.lua                /etc/transmission/oshash.lua
 COPY scripts/on-complete.sh            /etc/transmission/on-complete.sh
 COPY scripts/firewall.user             /etc/firewall.user
 RUN chmod +x /etc/transmission-watchdog.sh /etc/hotplug.d/iface/99-transmission-vpn \
+             /etc/transmission-dns-setup.sh \
              /etc/transmission-diag.sh /etc/transmission-subtitles.sh \
              /etc/transmission/on-complete.sh /etc/firewall.user
 

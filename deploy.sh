@@ -15,6 +15,7 @@ echo "Deploying to root@$ROUTER ..."
 # Copy scripts to the router (set -e will abort on any failure)
 scp -O "$SCRIPT_DIR/transmission-watchdog.sh"  "root@$ROUTER:/etc/transmission-watchdog.sh"
 scp -O "$SCRIPT_DIR/transmission-diag.sh"      "root@$ROUTER:/etc/transmission-diag.sh"
+scp -O "$SCRIPT_DIR/transmission-dns-setup.sh" "root@$ROUTER:/etc/transmission-dns-setup.sh"
 scp -O "$SCRIPT_DIR/99-transmission-vpn"        "root@$ROUTER:/etc/hotplug.d/iface/99-transmission-vpn"
 scp -O "$SCRIPT_DIR/transmission-README"        "root@$ROUTER:/etc/transmission/README"
 scp -O "$SCRIPT_DIR/transmission-subtitles.sh"  "root@$ROUTER:/etc/transmission-subtitles.sh"
@@ -37,6 +38,7 @@ ssh "root@$ROUTER" '
   set -e
 
   chmod +x /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
+           /etc/transmission-dns-setup.sh \
            /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-subtitles.sh \
            /etc/transmission/on-complete.sh /etc/firewall.user \
            /etc/macfilter-apply.sh /etc/reboot-test.sh
@@ -55,6 +57,9 @@ ssh "root@$ROUTER" '
   uci set transmission.@transmission[0].script_torrent_done_filename="/etc/transmission/on-complete.sh"
   uci commit transmission
 
+  # Configure Transmission-only DNS resolver before firewall redirect rules.
+  /etc/transmission-dns-setup.sh
+
   # Reload firewall to apply nft chain + UID routing
   sh /etc/firewall.user
 
@@ -64,6 +69,7 @@ ssh "root@$ROUTER" '
   echo "  Cron: $(crontab -l 2>/dev/null | grep watchdog)"
   echo "  Scripts:"
   ls -la /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
+         /etc/transmission-dns-setup.sh \
          /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission/README \
          /etc/transmission-subtitles.sh /etc/transmission/oshash.lua \
          /etc/firewall.user /etc/transmission/on-complete.sh \

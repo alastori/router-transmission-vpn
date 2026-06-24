@@ -8,7 +8,8 @@ Originally built for GL-AXT1800 (OpenVPN), now updated for GL-BE9300 Flint 3 (Wi
 
 | Script | Role | Trigger |
 |--------|------|---------|
-| `firewall.user` | nft per-UID chain + UID routing — VPN-only egress for Transmission | Firewall reload |
+| `firewall.user` | nft per-UID chain + UID routing; redirects Transmission DNS to the private resolver | Firewall reload |
+| `transmission-dns-setup.sh` | Configures the loopback-only `dhcp.transmission_dns` dnsmasq instance | Deploy / manual |
 | `99-transmission-vpn` | Stops Transmission on VPN down, rebinds + reannounces on VPN up | Hotplug (interface events) |
 | `transmission-watchdog.sh` | Detects "stale daemon" (running but stuck in tracker backoff) and auto-recovers | Cron, every 10 min |
 | `transmission-diag.sh` | One-command diagnostic with PASS/FAIL/WARN for every component | Manual |
@@ -64,6 +65,7 @@ logread | grep transmission-vpn-hotplug
 ```
 scripts/
   firewall.user              → /etc/firewall.user (nft chain + UID routing)
+  transmission-dns-setup.sh  → /etc/transmission-dns-setup.sh
   99-transmission-vpn        → /etc/hotplug.d/iface/99-transmission-vpn
   transmission-watchdog.sh   → /etc/transmission-watchdog.sh
   transmission-diag.sh       → /etc/transmission-diag.sh
@@ -85,11 +87,18 @@ Transmission (UID 224)
     ├── ip rule: uidrange 224-224 → table 1001 (VPN)
     └── nft chain transmission_vpn (OUTPUT):
           ├── tcp sport 9091 → br-lan     ACCEPT  (RPC replies)
-          ├── udp/tcp dport 53 → br-lan   ACCEPT  (DNS)
-          ├── oifname lo                   ACCEPT  (loopback)
+          ├── lo UDP/TCP 1053              ACCEPT  (private DNS)
+          ├── lo UDP/TCP 53                REJECT  (normal DNS fallback)
+          ├── oifname lo                   ACCEPT  (other loopback)
           ├── oifname wgclient             ACCEPT  (VPN peers+trackers)
           ├── udp dport 51820 → VPN EP    ACCEPT  (WireGuard encap)
           └── REJECT                               (fail-closed)
+
+Transmission DNS
+    ├── nft nat OUTPUT: UID 224 UDP/TCP 53 → 127.0.0.1:1053
+    ├── dnsmasq instance: dhcp.transmission_dns, user dnsmasq_vpn
+    ├── ip rule: uidrange dnsmasq_vpn → table 1001
+    └── nft guard: dnsmasq_vpn DNS allowed only to VPN DNS over VPN interface
 ```
 
 Key findings from deployment:

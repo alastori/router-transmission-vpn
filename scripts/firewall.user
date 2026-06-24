@@ -7,12 +7,60 @@
 
 U="$(id -u transmission 2>/dev/null || echo 224)"
 RPC_PORT="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
+DNSVPN_U="$(id -u dnsmasq_vpn 2>/dev/null || echo 456)"
+TRANS_DNS_PORT="$(uci -q get dhcp.transmission_dns.port 2>/dev/null || echo 1053)"
+TRANS_DNS_SERVER="$(uci -q get dhcp.transmission_dns.server 2>/dev/null | awk 'NR==1 { print $1 }')"
 
-# Auto-detect VPN interface (WireGuard or OpenVPN)
-IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
+# Auto-detect client VPN interface. Do not match wgserver.
+IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wgclient[0-9]*|ovpnclient[0-9]*|tun[0-9]*)$')"
 if [ -z "$IF" ]; then
   IF=wgclient
   logger -t firewall.user "WARNING: No VPN interface found, defaulting to $IF"
+fi
+
+case "$TRANS_DNS_PORT" in
+  ''|*[!0-9]*)
+    logger -t firewall.user "ERROR: invalid Transmission DNS redirect port '$TRANS_DNS_PORT'"
+    TRANS_DNS_PORT=""
+    ;;
+esac
+
+case "$TRANS_DNS_SERVER" in
+  "") ;;
+  *[!0-9.]*)
+    logger -t firewall.user "ERROR: invalid Transmission DNS server '$TRANS_DNS_SERVER'"
+    TRANS_DNS_SERVER=""
+    ;;
+esac
+
+if [ -n "$TRANS_DNS_PORT" ] && [ -n "$TRANS_DNS_SERVER" ]; then
+  # Redirect only Transmission's local DNS lookups to the private resolver.
+  # This keeps the shared LAN/router dnsmasq instance on normal direct DNS.
+  if nft list chain inet fw4 transmission_dns_redirect >/dev/null 2>&1; then
+    nft flush chain inet fw4 transmission_dns_redirect
+  else
+    nft add chain inet fw4 transmission_dns_redirect '{ type nat hook output priority -100; policy accept; }'
+  fi
+  nft add rule inet fw4 transmission_dns_redirect meta skuid "$U" udp dport 53 counter redirect to :"$TRANS_DNS_PORT"
+  nft add rule inet fw4 transmission_dns_redirect meta skuid "$U" tcp dport 53 counter redirect to :"$TRANS_DNS_PORT"
+
+  # Route the private resolver's upstream DNS through the VPN table and reject
+  # DNS fallback if the VPN route disappears.
+  ip rule del uidrange "$DNSVPN_U-$DNSVPN_U" lookup 1001 2>/dev/null
+  ip rule add uidrange "$DNSVPN_U-$DNSVPN_U" lookup 1001 priority 98
+
+  if nft list chain inet fw4 transmission_dns_vpn >/dev/null 2>&1; then
+    nft flush chain inet fw4 transmission_dns_vpn
+  else
+    nft add chain inet fw4 transmission_dns_vpn
+  fi
+  nft add rule inet fw4 transmission_dns_vpn oifname "$IF" ip daddr "$TRANS_DNS_SERVER" udp dport 53 counter accept
+  nft add rule inet fw4 transmission_dns_vpn oifname "$IF" ip daddr "$TRANS_DNS_SERVER" tcp dport 53 counter accept
+  nft add rule inet fw4 transmission_dns_vpn udp dport 53 counter reject
+  nft add rule inet fw4 transmission_dns_vpn tcp dport 53 counter reject
+
+  nft list chain inet fw4 output | grep -q "meta skuid $DNSVPN_U .* jump transmission_dns_vpn" || \
+    nft insert rule inet fw4 output position 0 meta skuid "$DNSVPN_U" counter jump transmission_dns_vpn
 fi
 
 # Create/refresh the per-UID chain
@@ -27,11 +75,21 @@ nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-lan" coun
 [ -d /sys/class/net/br-guest ] && \
 nft add rule inet fw4 transmission_vpn tcp sport $RPC_PORT oifname "br-guest" counter accept
 
-# DNS to router on LAN (UDP/TCP 53)
-nft add rule inet fw4 transmission_vpn oifname "br-lan" udp dport 53 counter accept
-nft add rule inet fw4 transmission_vpn oifname "br-lan" tcp dport 53 counter accept
+# DNS to the normal router resolver is allowed only when the private
+# Transmission DNS resolver is not configured.
+if [ -z "$TRANS_DNS_PORT" ] || [ -z "$TRANS_DNS_SERVER" ]; then
+  nft add rule inet fw4 transmission_vpn oifname "br-lan" udp dport 53 counter accept
+  nft add rule inet fw4 transmission_vpn oifname "br-lan" tcp dport 53 counter accept
+fi
 
-# Loopback
+# Loopback. When private DNS is configured, allow the redirected DNS port but
+# reject direct fallback to the normal local resolver on :53.
+if [ -n "$TRANS_DNS_PORT" ] && [ -n "$TRANS_DNS_SERVER" ]; then
+  nft add rule inet fw4 transmission_vpn oifname "lo" udp dport "$TRANS_DNS_PORT" counter accept
+  nft add rule inet fw4 transmission_vpn oifname "lo" tcp dport "$TRANS_DNS_PORT" counter accept
+  nft add rule inet fw4 transmission_vpn oifname "lo" udp dport 53 counter reject
+  nft add rule inet fw4 transmission_vpn oifname "lo" tcp dport 53 counter reject
+fi
 nft add rule inet fw4 transmission_vpn oifname "lo" counter accept
 
 # VPN egress for peers + trackers

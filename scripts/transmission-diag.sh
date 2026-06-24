@@ -17,7 +17,7 @@ divider() { echo ""; echo "═════════════════�
 # -------------------------------------------------------------------
 divider "1. VPN INTERFACE"
 # -------------------------------------------------------------------
-VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
+VPN_IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wgclient[0-9]*|ovpnclient[0-9]*|tun[0-9]*)$')"
 if [ -n "$VPN_IF" ]; then
     VPN_IP="$(ip -o -4 addr show dev "$VPN_IF" 2>/dev/null | awk '/inet /{print $4}' | cut -d/ -f1)"
     echo "  Interface: $VPN_IF"

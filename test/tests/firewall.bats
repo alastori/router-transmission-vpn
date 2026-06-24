@@ -57,6 +57,20 @@ teardown() {
   assert_success
 }
 
+@test "firewall: ignores WireGuard server when client exists" {
+  create_vpn_interface wgserver 10.1.0.1/24
+  create_vpn_interface wgclient 10.2.0.2/32
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "oifname.*wgclient.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "oifname.*wgserver.*accept" /tmp/nft_calls
+  assert_failure
+}
+
 # ── 4. WireGuard encap rule uses UCI endpoint + port ───────────────
 
 @test "firewall: WireGuard encap rule reads endpoint from UCI" {
@@ -155,4 +169,94 @@ teardown() {
   assert_success
 
   assert_log_contains "No VPN interface found"
+}
+
+@test "firewall: redirects Transmission DNS to private resolver" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  uci_set "dhcp.transmission_dns.server" "103.86.96.100"
+  uci_set "dhcp.transmission_dns.port" "1053"
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "add chain inet fw4 transmission_dns_redirect" /tmp/nft_calls
+  assert_success
+
+  run grep "meta skuid.*udp dport 53.*redirect to :1053" /tmp/nft_calls
+  assert_success
+
+  run grep "meta skuid.*tcp dport 53.*redirect to :1053" /tmp/nft_calls
+  assert_success
+}
+
+@test "firewall: guards private resolver DNS egress over VPN only" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  uci_set "dhcp.transmission_dns.server" "103.86.96.100"
+  uci_set "dhcp.transmission_dns.port" "1053"
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "add chain inet fw4 transmission_dns_vpn" /tmp/nft_calls
+  assert_success
+
+  run grep "oifname.*wgclient.*103.86.96.100.*udp dport 53.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "oifname.*wgclient.*103.86.96.100.*tcp dport 53.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "udp dport 53.*reject" /tmp/nft_calls
+  assert_success
+
+  run grep "tcp dport 53.*reject" /tmp/nft_calls
+  assert_success
+
+  run grep "meta skuid.*456.*jump transmission_dns_vpn" /tmp/nft_calls
+  assert_success
+}
+
+@test "firewall: invalid private resolver settings skip DNS redirect" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  uci_set "dhcp.transmission_dns.server" "103.86.96.100; nft flush ruleset"
+  uci_set "dhcp.transmission_dns.port" "bad"
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "transmission_dns_redirect" /tmp/nft_calls
+  assert_failure
+
+  run grep "transmission_dns_vpn" /tmp/nft_calls
+  assert_failure
+
+  assert_log_contains "invalid Transmission DNS redirect port"
+  assert_log_contains "invalid Transmission DNS server"
+}
+
+@test "firewall: private resolver disables normal router DNS fallback" {
+  create_vpn_interface wgclient 10.2.0.2/32
+  uci_set "dhcp.transmission_dns.server" "103.86.96.100"
+  uci_set "dhcp.transmission_dns.port" "1053"
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "br-lan.*udp dport 53.*accept" /tmp/nft_calls
+  assert_failure
+
+  run grep "br-lan.*tcp dport 53.*accept" /tmp/nft_calls
+  assert_failure
+
+  run grep "lo.*udp dport 1053.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "lo.*tcp dport 1053.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "lo.*udp dport 53.*reject" /tmp/nft_calls
+  assert_success
+
+  run grep "lo.*tcp dport 53.*reject" /tmp/nft_calls
+  assert_success
 }
