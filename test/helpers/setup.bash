@@ -18,8 +18,9 @@ create_vpn_interface() {
 remove_vpn_interface() {
   local name="${1:-ovpnclient1}"
   ip link del "$name" 2>/dev/null || true
-  # Also clean up wgclient if present (tests may create either)
+  # Also clean up common VPN interfaces if present (tests may create several)
   [ "$name" != "wgclient" ] && ip link del wgclient 2>/dev/null || true
+  [ "$name" != "wgserver" ] && ip link del wgserver 2>/dev/null || true
 }
 
 # ── sysfs tx_bytes counter simulation ───────────────────────────────
@@ -35,8 +36,17 @@ setup_tx_counter() {
 }
 
 teardown_tx_counter() {
-  local iface="${1:-ovpnclient1}"
-  umount "/sys/class/net/${iface}/statistics" 2>/dev/null || true
+  if [ "$#" -gt 0 ]; then
+    local iface
+    for iface in "$@"; do
+      umount "/sys/class/net/${iface}/statistics" 2>/dev/null || true
+    done
+    return
+  fi
+
+  umount "/sys/class/net/ovpnclient1/statistics" 2>/dev/null || true
+  umount "/sys/class/net/wgclient/statistics" 2>/dev/null || true
+  umount "/sys/class/net/wgserver/statistics" 2>/dev/null || true
 }
 
 set_tx_bytes() {

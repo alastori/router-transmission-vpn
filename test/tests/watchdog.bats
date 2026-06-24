@@ -134,3 +134,20 @@ teardown() {
   refute_log_contains "STALE"
   refute_log_contains "Restarting"
 }
+
+@test "watchdog: ignores WireGuard server when client exists" {
+  create_vpn_interface wgserver 10.1.0.1/24
+  create_vpn_interface wgclient 10.2.0.2/32
+  setup_tx_counter wgserver 5000
+  setup_tx_counter wgclient 10000
+  start_transmission
+
+  echo "active-no-peers" > /tmp/tr_override_mode
+  echo "5000" > /tmp/transmission-watchdog.last
+  touch /tmp/transmission-watchdog.last.init
+
+  run /etc/transmission-watchdog.sh
+  assert_success
+  refute_log_contains "STALE"
+  refute_log_contains "Restarting"
+}

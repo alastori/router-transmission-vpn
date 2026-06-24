@@ -57,6 +57,20 @@ teardown() {
   assert_success
 }
 
+@test "firewall: ignores WireGuard server when client exists" {
+  create_vpn_interface wgserver 10.1.0.1/24
+  create_vpn_interface wgclient 10.2.0.2/32
+
+  run "$FIREWALL"
+  assert_success
+
+  run grep "oifname.*wgclient.*accept" /tmp/nft_calls
+  assert_success
+
+  run grep "oifname.*wgserver.*accept" /tmp/nft_calls
+  assert_failure
+}
+
 # ── 4. WireGuard encap rule uses UCI endpoint + port ───────────────
 
 @test "firewall: WireGuard encap rule reads endpoint from UCI" {

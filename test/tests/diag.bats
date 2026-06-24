@@ -35,6 +35,22 @@ teardown() {
   assert_output --partial "PASS"
 }
 
+@test "diag: ignores WireGuard server when client exists" {
+  create_vpn_interface wgserver 10.1.0.1/24
+  create_vpn_interface wgclient 10.2.0.2/32
+  setup_tx_counter wgclient 12345
+  start_transmission
+
+  echo "active-with-peers" > /tmp/tr_override_mode
+  uci_set "transmission.@transmission[0].bind_address_ipv4" "10.2.0.2"
+  uci_set "transmission.@transmission[0].download_dir" "/tmp/transmission"
+
+  run /etc/transmission-diag.sh
+  assert_success
+  assert_output --partial "Interface: wgclient"
+  refute_output --partial "Interface: wgserver"
+}
+
 # ── 2. VPN down → FAIL ────────────────────────────────────────────
 
 @test "diag: VPN down — reports failure" {

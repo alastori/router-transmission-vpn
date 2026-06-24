@@ -8,8 +8,8 @@
 U="$(id -u transmission 2>/dev/null || echo 224)"
 RPC_PORT="$(uci -q get transmission.@transmission[0].rpc_port || echo 9091)"
 
-# Auto-detect VPN interface (WireGuard or OpenVPN)
-IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wg|ovpn|tun)')"
+# Auto-detect client VPN interface. Do not match wgserver.
+IF="$(ip -o -4 addr show | awk '{print $2}' | grep -m1 -E '^(wgclient[0-9]*|ovpnclient[0-9]*|tun[0-9]*)$')"
 if [ -z "$IF" ]; then
   IF=wgclient
   logger -t firewall.user "WARNING: No VPN interface found, defaulting to $IF"
