@@ -19,7 +19,6 @@ FILE LOCATIONS
   Settings:      /etc/transmission/settings.json
   Firewall:      /etc/firewall.user
   Hotplug:       /etc/hotplug.d/iface/99-transmission-vpn
-  DNS route:     /etc/hotplug.d/iface/98-vpn-dns-routes
   Watchdog:      /etc/transmission-watchdog.sh
   Diagnostics:   /etc/transmission-diag.sh
   Done script:   /etc/transmission/on-complete.sh (copies to Movies for DLNA)
@@ -66,7 +65,6 @@ ARCHITECTURE
   - Hotplug stops/starts daemon + rebinds IP on VPN changes
   - Watchdog cron detects stale state (0 peers + stagnant counters)
   - Firewall fail-closed: if VPN drops, peer traffic is rejected (UI stays)
-  - dnsmasq DNS egress is allowed only to VPN DNS over wgclient when configured
   - on-complete.sh copies finished downloads to Movies folder for DLNA serving
 
 FULL DOCS

@@ -15,18 +15,6 @@ esac
 
 # Detect which chain is being queried
 case "$*" in
-  *"dns_vpn_only"*)
-    case "$MODE" in
-      missing|firewall-fresh)
-        echo "Error: No such file or directory; did you mean chain 'output' in table inet 'fw4'?" >&2
-        exit 1
-        ;;
-      *)
-        cat /opt/test/fixtures/nft/chain-clean.txt
-        exit 0
-        ;;
-    esac
-    ;;
   *"transmission_vpn"*)
     case "$MODE" in
       present)
