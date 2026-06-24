@@ -15,6 +15,39 @@ if [ -z "$IF" ]; then
   logger -t firewall.user "WARNING: No VPN interface found, defaulting to $IF"
 fi
 
+# Router resolver upstream DNS guard. When wgclient DNS is configured, keep
+# dnsmasq upstream DNS on wgclient and reject any other DNS egress from dnsmasq.
+DNSU="$(id -u dnsmasq 2>/dev/null || echo 453)"
+WG_PROTO="$(uci -q get network.wgclient.proto 2>/dev/null || true)"
+VPN_DNS="$(uci -q get network.wgclient.dns 2>/dev/null | awk 'NR==1 { print $1 }')"
+if [ -z "$VPN_DNS" ] && [ "$WG_PROTO" = "wireguard" ]; then
+  VPN_DNS="$(uci -q get dhcp.@dnsmasq[0].server 2>/dev/null | awk 'NR==1 { print $1 }')"
+fi
+
+case "$VPN_DNS" in
+  "") ;;
+  *[!0-9.]*) logger -t firewall.user "ERROR: invalid VPN DNS '$VPN_DNS'"; VPN_DNS="" ;;
+esac
+
+if [ -n "$VPN_DNS" ]; then
+  ip route replace "$VPN_DNS/32" dev wgclient table main 2>/dev/null || true
+
+  if nft list chain inet fw4 dns_vpn_only >/dev/null 2>&1; then
+    nft flush chain inet fw4 dns_vpn_only
+  else
+    nft add chain inet fw4 dns_vpn_only
+  fi
+
+  nft add rule inet fw4 dns_vpn_only oifname "lo" counter accept
+  nft add rule inet fw4 dns_vpn_only oifname "wgclient" ip daddr "$VPN_DNS" udp dport 53 counter accept
+  nft add rule inet fw4 dns_vpn_only oifname "wgclient" ip daddr "$VPN_DNS" tcp dport 53 counter accept
+  nft add rule inet fw4 dns_vpn_only udp dport 53 counter reject
+  nft add rule inet fw4 dns_vpn_only tcp dport 53 counter reject
+
+  nft list chain inet fw4 output | grep -q "meta skuid $DNSU .* jump dns_vpn_only" || \
+    nft insert rule inet fw4 output position 0 meta skuid "$DNSU" counter jump dns_vpn_only
+fi
+
 # Create/refresh the per-UID chain
 if nft list chain inet fw4 transmission_vpn >/dev/null 2>&1; then
   nft flush chain inet fw4 transmission_vpn

@@ -7,7 +7,8 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on OpenWrt, 
 - `scripts/` — Production scripts deployed to the router via `deploy.sh`
   - `firewall.user` → `/etc/firewall.user` (nft per-UID chain + UID routing)
   - `transmission-watchdog.sh` → `/etc/transmission-watchdog.sh` (cron, every 10 min)
-  - `99-transmission-vpn` → `/etc/hotplug.d/iface/99-transmission-vpn` (hotplug event handler)
+  - `99-transmission-vpn` → `/etc/hotplug.d/iface/99-transmission-vpn` (Transmission hotplug event handler)
+  - `98-vpn-dns-routes` → `/etc/hotplug.d/iface/98-vpn-dns-routes` (main-table VPN DNS host route + ifdown blackhole)
   - `transmission-diag.sh` → `/etc/transmission-diag.sh` (diagnostic tool)
   - `on-complete.sh` → `/etc/transmission/on-complete.sh` (copies to Movies for DLNA)
   - `transmission-README` → `/etc/transmission/README` (on-router quick reference)

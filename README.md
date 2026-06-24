@@ -8,8 +8,9 @@ Originally built for GL-AXT1800 (OpenVPN), now updated for GL-BE9300 Flint 3 (Wi
 
 | Script | Role | Trigger |
 |--------|------|---------|
-| `firewall.user` | nft per-UID chain + UID routing — VPN-only egress for Transmission | Firewall reload |
+| `firewall.user` | nft per-UID chain + UID routing; also enforces VPN-only router DNS when `wgclient` DNS is configured | Firewall reload |
 | `99-transmission-vpn` | Stops Transmission on VPN down, rebinds + reannounces on VPN up | Hotplug (interface events) |
+| `98-vpn-dns-routes` | Keeps `dnsmasq` upstream DNS routed through `wgclient` and blackholed on VPN down | Hotplug (interface events) |
 | `transmission-watchdog.sh` | Detects "stale daemon" (running but stuck in tracker backoff) and auto-recovers | Cron, every 10 min |
 | `transmission-diag.sh` | One-command diagnostic with PASS/FAIL/WARN for every component | Manual |
 | `on-complete.sh` | Copies completed downloads to Movies folder for DLNA serving | Transmission done-script |
@@ -65,6 +66,7 @@ logread | grep transmission-vpn-hotplug
 scripts/
   firewall.user              → /etc/firewall.user (nft chain + UID routing)
   99-transmission-vpn        → /etc/hotplug.d/iface/99-transmission-vpn
+  98-vpn-dns-routes        → /etc/hotplug.d/iface/98-vpn-dns-routes
   transmission-watchdog.sh   → /etc/transmission-watchdog.sh
   transmission-diag.sh       → /etc/transmission-diag.sh
   on-complete.sh             → /etc/transmission/on-complete.sh
@@ -90,6 +92,12 @@ Transmission (UID 224)
           ├── oifname wgclient             ACCEPT  (VPN peers+trackers)
           ├── udp dport 51820 → VPN EP    ACCEPT  (WireGuard encap)
           └── REJECT                               (fail-closed)
+
+Router DNS (`dnsmasq`, UID 453) when `wgclient` DNS is configured:
+    ├── main-table host route: VPN DNS /32 → wgclient
+    └── nft chain dns_vpn_only (OUTPUT):
+          ├── oifname wgclient, daddr VPN DNS, udp/tcp 53 ACCEPT
+          └── udp/tcp 53 REJECT
 ```
 
 Key findings from deployment:

@@ -16,6 +16,7 @@ echo "Deploying to root@$ROUTER ..."
 scp -O "$SCRIPT_DIR/transmission-watchdog.sh"  "root@$ROUTER:/etc/transmission-watchdog.sh"
 scp -O "$SCRIPT_DIR/transmission-diag.sh"      "root@$ROUTER:/etc/transmission-diag.sh"
 scp -O "$SCRIPT_DIR/99-transmission-vpn"        "root@$ROUTER:/etc/hotplug.d/iface/99-transmission-vpn"
+scp -O "$SCRIPT_DIR/98-vpn-dns-routes"        "root@$ROUTER:/etc/hotplug.d/iface/98-vpn-dns-routes"
 scp -O "$SCRIPT_DIR/transmission-README"        "root@$ROUTER:/etc/transmission/README"
 scp -O "$SCRIPT_DIR/transmission-subtitles.sh"  "root@$ROUTER:/etc/transmission-subtitles.sh"
 scp -O "$SCRIPT_DIR/oshash.lua"                 "root@$ROUTER:/etc/transmission/oshash.lua"
@@ -37,7 +38,8 @@ ssh "root@$ROUTER" '
   set -e
 
   chmod +x /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
-           /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-subtitles.sh \
+           /etc/hotplug.d/iface/99-transmission-vpn /etc/hotplug.d/iface/98-vpn-dns-routes \
+           /etc/transmission-subtitles.sh \
            /etc/transmission/on-complete.sh /etc/firewall.user \
            /etc/macfilter-apply.sh /etc/reboot-test.sh
 
@@ -64,7 +66,8 @@ ssh "root@$ROUTER" '
   echo "  Cron: $(crontab -l 2>/dev/null | grep watchdog)"
   echo "  Scripts:"
   ls -la /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
-         /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission/README \
+         /etc/hotplug.d/iface/99-transmission-vpn /etc/hotplug.d/iface/98-vpn-dns-routes \
+         /etc/transmission/README \
          /etc/transmission-subtitles.sh /etc/transmission/oshash.lua \
          /etc/firewall.user /etc/transmission/on-complete.sh \
          /etc/macfilter-apply.sh /etc/reboot-test.sh 2>/dev/null
