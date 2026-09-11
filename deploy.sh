@@ -72,7 +72,7 @@ ssh "root@$ROUTER" '
          /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission/README \
          /etc/transmission-subtitles.sh /etc/transmission/oshash.lua \
          /etc/firewall.user /etc/transmission/on-complete.sh \
-         /etc/macfilter-apply.sh /etc/reboot-test.sh 2>/dev/null
+         /etc/macfilter-apply.sh /etc/reboot-test.sh /etc/mac-studio-dns.sh 2>/dev/null
 '
 
 echo ""
