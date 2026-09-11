@@ -14,6 +14,7 @@ Shell scripts for managing Transmission BitTorrent daemon lifecycle on OpenWrt, 
   - `transmission-subtitles.sh` → `/etc/transmission-subtitles.sh` (script-torrent-done hook for auto subtitle downloads)
   - `oshash.lua` → `/etc/transmission/oshash.lua` (OpenSubtitles hash computation, Lua 5.1)
   - `opensubtitles.conf.example` → `/etc/transmission/opensubtitles.conf` (template, deployed only if not present)
+  - `mac-studio-dns.sh` → `/etc/mac-studio-dns.sh` (cron, every 1 min; publishes the live Mac Studio address as `al-mac7.lan` via dnsmasq addn-hosts)
 - `deploy.sh` — SCP+SSH deployment to the router (uses `scp -O` for OpenWrt compat)
 - `test/` — Docker-based test suite
 
