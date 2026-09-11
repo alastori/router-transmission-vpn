@@ -22,7 +22,8 @@ scp -O "$SCRIPT_DIR/oshash.lua"                 "root@$ROUTER:/etc/transmission/
 scp -O "$SCRIPT_DIR/firewall.user"              "root@$ROUTER:/etc/firewall.user"
 scp -O "$SCRIPT_DIR/on-complete.sh"             "root@$ROUTER:/etc/transmission/on-complete.sh"
 scp -O "$SCRIPT_DIR/macfilter-apply.sh"         "root@$ROUTER:/etc/macfilter-apply.sh"
-scp -O "$SCRIPT_DIR/reboot-test.sh"            "root@$ROUTER:/etc/reboot-test.sh"
+scp -O "$SCRIPT_DIR/reboot-test.sh"             "root@$ROUTER:/etc/reboot-test.sh"
+scp -O "$SCRIPT_DIR/mac-studio-dns.sh"          "root@$ROUTER:/etc/mac-studio-dns.sh"
 
 # Deploy config templates only if not already present (preserve credentials / device lists)
 ssh "root@$ROUTER" 'test -f /etc/transmission/opensubtitles.conf' 2>/dev/null || \
@@ -39,7 +40,11 @@ ssh "root@$ROUTER" '
   chmod +x /etc/transmission-watchdog.sh /etc/transmission-diag.sh \
            /etc/hotplug.d/iface/99-transmission-vpn /etc/transmission-subtitles.sh \
            /etc/transmission/on-complete.sh /etc/firewall.user \
-           /etc/macfilter-apply.sh /etc/reboot-test.sh
+           /etc/macfilter-apply.sh /etc/reboot-test.sh /etc/mac-studio-dns.sh
+
+  # Install mac-studio-dns cron if not already present (al-mac7.lan stable name)
+  (crontab -l 2>/dev/null | grep -q "mac-studio-dns" || \
+   (crontab -l 2>/dev/null; echo "* * * * * /etc/mac-studio-dns.sh") | crontab -)
 
   # Install watchdog cron if not already present
   (crontab -l 2>/dev/null | grep -q "transmission-watchdog" || \
