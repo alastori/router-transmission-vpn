@@ -73,10 +73,26 @@ scripts/
   oshash.lua                 → /etc/transmission/oshash.lua
   macfilter-apply.sh         → /etc/macfilter-apply.sh (2.4 GHz MAC deny, called from rc.local)
   reboot-test.sh             → /etc/reboot-test.sh (12-check post-reboot verification)
+  mac-studio-dns.sh          → /etc/mac-studio-dns.sh (cron, 1 min; publishes live Mac Studio IP as al-mac7.lan)
+  opensubtitles.conf.example → /etc/transmission/opensubtitles.conf (template, deployed only if absent)
+  macfilter.conf.example     → /etc/macfilter.conf (template, deployed only if absent)
 deploy.sh                    # SCP + SSH deployment
 backup.sh                   # UCI config backup to local .backups/ (gitignored)
 test/                        # Docker-based test suite
 ```
+
+### Adding a new script (checklist)
+
+Every deployed script touches **all** of these — missing any one causes silent drift:
+
+1. `scripts/<name>` in the repo
+2. `deploy.sh` — the `scp -O` line, the `chmod +x` list, **and** the verification `ls -la` list
+3. `deploy.sh` — any cron/rc.local/UCI install step, idempotently (grep-guarded)
+4. `AGENTS.md` — structure map row
+5. `README.md` — Repository Structure entry; What This Does row if it has a runtime role
+6. `test/tests/` — a bats test if the script has testable logic (Docker/colima must be up)
+
+Verify after deploying: `ssh root@192.168.8.1 /etc/transmission-diag.sh` plus the deploy output's `ls -la` list must include the new file.
 
 ## Architecture
 
